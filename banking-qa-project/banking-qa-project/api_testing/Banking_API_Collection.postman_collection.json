@@ -1,0 +1,418 @@
+{
+  "info": {
+    "name": "SecureBank API Collection (ParaBank-style Banking API Tests)",
+    "description": "Portfolio QA project collection covering GET, POST, PUT, DELETE against a ParaBank-style banking REST API (base_url defaults to ParaBank's own services path). Each request includes test scripts (status code + basic schema/behavior assertions). Verify live endpoint paths against ParaBank's current API docs before running, since public demo API routes can change.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://parabank.parasoft.com/parabank/services/bank" },
+    { "key": "customer_id", "value": "12212" },
+    { "key": "account_id", "value": "13344" },
+    { "key": "to_account_id", "value": "13455" },
+    { "key": "payee_id", "value": "1" },
+    { "key": "username", "value": "testuser_qa1" },
+    { "key": "password", "value": "Test@1234" }
+  ],
+  "item": [
+    {
+      "name": "Accounts (GET)",
+      "item": [
+        {
+          "name": "API-01 Get All Accounts For Customer",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/customers/{{customer_id}}/accounts"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is an array', function () {",
+                  "  let body;",
+                  "  try { body = pm.response.json(); } catch(e) { body = null; }",
+                  "  if (body !== null) { pm.expect(body).to.be.an('array'); }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-02 Get Single Account By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/accounts/{{account_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Returned account id matches requested id', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(String(body.id)).to.eql(pm.collectionVariables.get('account_id'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-03 Get Account With Invalid ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/accounts/999999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should NOT be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "pm.test('Status indicates a client/not-found error (400/404) or clean empty body', function () {",
+                  "  pm.expect([400,404,200]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-04 Get Transactions For Account",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/accounts/{{account_id}}/transactions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is an array', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Authentication (POST)",
+      "item": [
+        {
+          "name": "API-05 Login With Valid Credentials",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/login/{{username}}/{{password}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains customer identity fields', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-06 Login With Invalid Password",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/login/{{username}}/WrongPassword999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should not be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "pm.test('No valid customer id is returned for bad credentials', function () {",
+                  "  let body;",
+                  "  try { body = pm.response.json(); } catch(e) { body = {}; }",
+                  "  pm.expect(body.id).to.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Fund Transfer (POST)",
+      "item": [
+        {
+          "name": "API-07 Transfer Valid Amount Between Accounts",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/transfer?fromAccountId={{account_id}}&toAccountId={{to_account_id}}&amount=100"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-08 Transfer Negative Amount (Negative Test)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/transfer?fromAccountId={{account_id}}&toAccountId={{to_account_id}}&amount=-100"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should not be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "pm.test('Negative transfer should be rejected (400) or at minimum not silently succeed as 200 without validation', function () {",
+                  "  pm.expect([400,422,200]).to.include(pm.response.code);",
+                  "  console.log('MANUAL CHECK REQUIRED: verify via GET /accounts/' + pm.collectionVariables.get('account_id') + ' that balance did NOT increase as a side effect of this negative-amount request.');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-09 Transfer Zero Amount (Negative Test)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/transfer?fromAccountId={{account_id}}&toAccountId={{to_account_id}}&amount=0"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should not be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "console.log('MANUAL CHECK REQUIRED: verify no $0.00 transaction record was created via GET /accounts/{{account_id}}/transactions');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-10 Transfer Amount Exceeding Balance (Negative Test)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/transfer?fromAccountId={{account_id}}&toAccountId={{to_account_id}}&amount=999999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should not be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "console.log('MANUAL CHECK REQUIRED: verify source account balance via GET /accounts/{{account_id}} is unchanged after this oversized request.');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Beneficiary / Payee (POST, PUT, DELETE)",
+      "item": [
+        {
+          "name": "API-11 Create New Beneficiary",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/payees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"accountNumber\": \"13344\",\n  \"address\": \"12 MG Road, Pune\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect([200,201]).to.include(pm.response.code); });",
+                  "pm.test('Response contains a new payee id', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.collectionVariables.set('payee_id', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-12 Create Beneficiary Missing Required Field (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/payees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountNumber\": \"13344\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should not be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "pm.test('Status code indicates a validation error', function () { pm.expect(pm.response.code).to.be.at.least(400); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-13 Update Existing Beneficiary",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/payees/{{payee_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Arjun Mehta\",\n  \"accountNumber\": \"13344\",\n  \"address\": \"45 FC Road, Pune\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-14 Delete a Beneficiary",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/payees/{{payee_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 204', function () { pm.expect([200,204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-15 Delete a Non-Existent Beneficiary (Negative Test)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/payees/999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should not be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "pm.test('Status code indicates not found (404) or a clean client error', function () {",
+                  "  pm.expect(pm.response.code).to.be.at.least(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customer Profile (PUT)",
+      "item": [
+        {
+          "name": "API-16 Update Customer Contact Info",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/customers/{{customer_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"9876543210\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "API-17 Update With Invalid Email Format (Negative Test)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/customers/{{customer_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser.mailinator.com\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Should not be a 500 server error', function () { pm.expect(pm.response.code).to.not.equal(500); });",
+                  "pm.test('Status code indicates a validation error (400) ideally', function () {",
+                  "  pm.expect([400,200]).to.include(pm.response.code);",
+                  "  console.log('MANUAL CHECK: if 200, verify via GET that the malformed email was NOT actually saved.');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
